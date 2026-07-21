@@ -14,14 +14,15 @@
 #include "hittable.h"
 #include "material.h"
 
-#ifdef JOLT
-#include "jolt/jolt_vm.h"
+#ifdef OPENVM
+#include "openvm/openvm_vm.h"
+#include "openvm/openvm_sha256.h"
 #include <cstring>
 #include <ostream>
 #include <streambuf>
 #include <string>
 
-struct jolt_out_buf : std::streambuf {
+struct openvm_out_buf : std::streambuf {
     std::string _buf;
 
     std::streamsize xsputn(const char *s, std::streamsize n) override {
@@ -35,19 +36,37 @@ struct jolt_out_buf : std::streambuf {
     }
 
     int sync() override {
-        if (!_buf.empty())
-            std::memcpy(reinterpret_cast<void *>(JOLT_VM_OUTPUT_START), _buf.data(), _buf.size());
+        if (!_buf.empty()) {
+            std::memcpy(reinterpret_cast<void *>(OPENVM_CARVE_START),
+                        _buf.data(), _buf.size());
+            /* Reveal (ptr, size, sha256) so the host runner can locate the
+             * buffer in AS 2 and verify the bytes match the proof commitment.
+             * Layout matches runner/src/main.rs:
+             *   [0..4]   u32 LE ptr
+             *   [4..8]   u32 LE size
+             *   [8..40]  32 bytes SHA-256 (big-endian per FIPS 180-4) */
+            uint8_t hash[32];
+            openvm_sha256(reinterpret_cast<const uint8_t *>(OPENVM_CARVE_START),
+                          _buf.size(), hash);
+            openvm_reveal_u32(0, (uint32_t)OPENVM_CARVE_START);
+            openvm_reveal_u32(4, (uint32_t)_buf.size());
+            for (uint32_t i = 0; i < 32; i += 4) {
+                uint32_t word;
+                std::memcpy(&word, hash + i, 4);
+                openvm_reveal_u32(8 + i, word);
+            }
+        }
         return 0;
     }
 };
 
-struct jolt_ostream : std::ostream {
-    jolt_out_buf _b;
-    jolt_ostream() : std::ostream(&_b) {}
+struct openvm_ostream : std::ostream {
+    openvm_out_buf _b;
+    openvm_ostream() : std::ostream(&_b) {}
 };
 
-inline jolt_ostream jout;
-#define OUT jout
+inline openvm_ostream openvm_jout;
+#define OUT openvm_jout
 #else
 #include <iostream>
 #define OUT std::cout
