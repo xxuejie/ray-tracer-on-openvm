@@ -124,7 +124,7 @@ class camera {
         image_height = int(image_width / aspect_ratio);
         image_height = (image_height < 1) ? 1 : image_height;
 
-        pixel_samples_scale = 1.0 / samples_per_pixel;
+        pixel_samples_scale = REAL_C(1.0) / samples_per_pixel;
 
         center = lookfrom;
 
@@ -149,7 +149,7 @@ class camera {
 
         // Calculate the location of the upper left pixel.
         auto viewport_upper_left = center - (focus_dist * w) - viewport_u/2 - viewport_v/2;
-        pixel00_loc = viewport_upper_left + 0.5 * (pixel_delta_u + pixel_delta_v);
+        pixel00_loc = viewport_upper_left + REAL_C(0.5) * (pixel_delta_u + pixel_delta_v);
 
         // Calculate the camera defocus disk basis vectors.
         auto defocus_radius = focus_dist * std::tan(degrees_to_radians(defocus_angle / 2));
@@ -177,7 +177,7 @@ class camera {
 #ifdef RT_CENTER_SAMPLE
         return vec3(0, 0, 0);
 #else
-        return vec3(random_double() - 0.5, random_double() - 0.5, 0);
+        return vec3(random_double() - REAL_C(0.5), random_double() - REAL_C(0.5), 0);
 #endif
     }
 
@@ -199,7 +199,7 @@ class camera {
 
         hit_record rec;
 
-        if (world.hit(r, interval(0.001, infinity), rec)) {
+        if (world.hit(r, interval(REAL_C(0.001), infinity), rec)) {
             ray scattered;
             color attenuation;
             if (rec.mat->scatter(r, rec, attenuation, scattered))
