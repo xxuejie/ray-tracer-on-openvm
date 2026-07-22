@@ -18,55 +18,77 @@
 #include "openvm/openvm_vm.h"
 #include "openvm/openvm_sha256.h"
 #include <cstring>
-#include <ostream>
-#include <streambuf>
-#include <string>
+#include <cstdio>
 
-struct openvm_out_buf : std::streambuf {
-    std::string _buf;
+/* Direct-to-memory writer: bypasses ostream, streambuf, and std::string
+ * entirely. Writes PPM output straight to OPENVM_CARVE_START in AS 2.
+ * On flush(), hashes and reveals (ptr, size, sha256) to AS 3. */
+struct openvm_writer {
+    uint8_t* ptr;
 
-    std::streamsize xsputn(const char *s, std::streamsize n) override {
-        _buf.append(s, n);
-        return n;
+    openvm_writer() : ptr(reinterpret_cast<uint8_t*>(OPENVM_CARVE_START)) {}
+
+    void write(const char* data, uint32_t len) {
+        std::memcpy(ptr, data, len);
+        ptr += len;
     }
 
-    int_type overflow(int_type c) override {
-        if (c != traits_type::eof()) _buf.push_back(static_cast<char>(c));
-        return c;
-    }
+    void write_char(char c) { *ptr++ = c; }
 
-    int sync() override {
-        if (!_buf.empty()) {
-            std::memcpy(reinterpret_cast<void *>(OPENVM_CARVE_START),
-                        _buf.data(), _buf.size());
-            /* Reveal (ptr, size, sha256) so the host runner can locate the
-             * buffer in AS 2 and verify the bytes match the proof commitment.
-             * Layout matches runner/src/main.rs:
-             *   [0..4]   u32 LE ptr
-             *   [4..8]   u32 LE size
-             *   [8..40]  32 bytes SHA-256 (big-endian per FIPS 180-4) */
-            uint8_t hash[32];
-            openvm_sha256(reinterpret_cast<const uint8_t *>(OPENVM_CARVE_START),
-                          _buf.size(), hash);
-            openvm_reveal_u32(0, (uint32_t)OPENVM_CARVE_START);
-            openvm_reveal_u32(4, (uint32_t)_buf.size());
-            for (uint32_t i = 0; i < 32; i += 4) {
-                uint32_t word;
-                std::memcpy(&word, hash + i, 4);
-                openvm_reveal_u32(8 + i, word);
-            }
+    void write_int(int v) {
+        if (v >= 100) {
+            *ptr++ = '0' + v / 100;
+            *ptr++ = '0' + (v / 10) % 10;
+            *ptr++ = '0' + v % 10;
+        } else if (v >= 10) {
+            *ptr++ = '0' + v / 10;
+            *ptr++ = '0' + v % 10;
+        } else {
+            *ptr++ = '0' + v;
         }
-        return 0;
+    }
+
+    uint32_t size() const {
+        return static_cast<uint32_t>(ptr - reinterpret_cast<uint8_t*>(OPENVM_CARVE_START));
+    }
+
+    void flush() {
+        uint32_t total = size();
+        uint8_t hash[32];
+        openvm_sha256(reinterpret_cast<const uint8_t*>(OPENVM_CARVE_START), total, hash);
+        openvm_reveal_u32(0, OPENVM_CARVE_START);
+        openvm_reveal_u32(4, total);
+        for (uint32_t i = 0; i < 32; i += 4) {
+            uint32_t word;
+            std::memcpy(&word, hash + i, 4);
+            openvm_reveal_u32(8 + i, word);
+        }
     }
 };
 
-struct openvm_ostream : std::ostream {
-    openvm_out_buf _b;
-    openvm_ostream() : std::ostream(&_b) {}
-};
+inline openvm_writer openvm_wout;
+#define OUT openvm_wout
 
-inline openvm_ostream openvm_jout;
-#define OUT openvm_jout
+/* OPENVM-specific write_color: writes directly to the raw buffer,
+ * bypassing ostream/streambuf/string entirely. */
+inline void write_color(openvm_writer& out, const color& pixel_color) {
+    auto r = pixel_color.x();
+    auto g = pixel_color.y();
+    auto b = pixel_color.z();
+
+    r = linear_to_gamma(r);
+    g = linear_to_gamma(g);
+    b = linear_to_gamma(b);
+
+    static const interval intensity(REAL_C(0.000), REAL_C(0.999));
+    int rbyte = int(256 * intensity.clamp(r));
+    int gbyte = int(256 * intensity.clamp(g));
+    int bbyte = int(256 * intensity.clamp(b));
+
+    out.write_int(rbyte); out.write_char(' ');
+    out.write_int(gbyte); out.write_char(' ');
+    out.write_int(bbyte); out.write_char('\n');
+}
 #else
 #include <iostream>
 #define OUT std::cout
@@ -91,10 +113,16 @@ class camera {
     void render(const hittable& world) {
         initialize();
 
-        OUT << "P3\n" << image_width << ' ' << image_height << "\n255\n";
+        {
+            char hdr[32];
+            int hn = snprintf(hdr, sizeof(hdr), "P3\n%d %d\n255\n", image_width, image_height);
+            OUT.write(hdr, hn);
+        }
 
         for (int j = 0; j < image_height; j++) {
+#ifndef NO_DEBUG_INFO
             std::clog << "\rScanlines remaining: " << (image_height - j) << ' ' << std::flush;
+#endif
             for (int i = 0; i < image_width; i++) {
                 color pixel_color(0,0,0);
                 for (int sample = 0; sample < samples_per_pixel; sample++) {
@@ -105,7 +133,9 @@ class camera {
             }
         }
 
+#ifndef NO_DEBUG_INFO
         std::clog << "\rDone.                 \n";
+#endif
         OUT.flush();
     }
 
