@@ -113,11 +113,12 @@ class camera {
     void render(const hittable& world) {
         initialize();
 
-        {
-            char hdr[32];
-            int hn = snprintf(hdr, sizeof(hdr), "P3\n%d %d\n255\n", image_width, image_height);
-            OUT.write(hdr, hn);
-        }
+        // PPM header: "P3\n<width> <height>\n255\n"
+        // Build directly via write_char/write_int to avoid snprintf overhead.
+        OUT.write_char('P'); OUT.write_char('3'); OUT.write_char('\n');
+        OUT.write_int(image_width); OUT.write_char(' ');
+        OUT.write_int(image_height); OUT.write_char('\n');
+        OUT.write_char('2'); OUT.write_char('5'); OUT.write_char('5'); OUT.write_char('\n');
 
         for (int j = 0; j < image_height; j++) {
 #ifndef NO_DEBUG_INFO
@@ -231,7 +232,7 @@ class camera {
 
         if (world.hit(r, interval(REAL_C(0.001), infinity), rec)) {
             ray scattered;
-            color attenuation;
+            color attenuation(vec3::uninitialized{});
             if (rec.mat->scatter(r, rec, attenuation, scattered))
                 return attenuation * ray_color(scattered, depth-1, world);
             return color(0,0,0);
