@@ -31,7 +31,9 @@ That being said there can also be other uses for the interpreter hook, e.g., deb
 | Jolt (rv64im + softfloat + non-float optimizations)   | 122,043,178 cycles | 1.36x  |
 | OpenVM (rv32im + softfloat)                           | 123,294,825 cycles | 1.35x  |
 | OpenVM (rv32im + softfloat + non-float optimizations) | 99,083,769 cycles  | 1.68x  |
+| OpenVM (rv32imf)                                      | 29,591,216 cycles  | 5.64x  |
 | OpenVM (rv32im_zfinx)                                 | 29,467,504 cycles  | 5.66x  |
+| OpenVM (rv32imf + non-float optimizations)            | 5,283,763 cycles   | 31.58x |
 | OpenVM (rv32im_zfinx + non-float optimizations)       | 5,147,995 cycles   | 32.42x |
 ```
 
