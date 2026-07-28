@@ -14,19 +14,13 @@
 #include "hittable.h"
 #include "material.h"
 
-#ifdef OPENVM
-#include "openvm/openvm_vm.h"
-#include "openvm/openvm_sha256.h"
+#include <cstdint>
 #include <cstring>
-#include <cstdio>
 
-/* Direct-to-memory writer: bypasses ostream, streambuf, and std::string
- * entirely. Writes PPM output straight to OPENVM_CARVE_START in AS 2.
- * On flush(), hashes and reveals (ptr, size, sha256) to AS 3. */
-struct openvm_writer {
+/* Byte-emitting core shared by both output writers, so write_int/write_char
+ * codegen is identical on OpenVM and native x86_64. */
+struct writer_core {
     uint8_t* ptr;
-
-    openvm_writer() : ptr(reinterpret_cast<uint8_t*>(OPENVM_CARVE_START)) {}
 
     void write(const char* data, uint32_t len) {
         std::memcpy(ptr, data, len);
@@ -47,6 +41,18 @@ struct openvm_writer {
             *ptr++ = '0' + v;
         }
     }
+};
+
+#ifdef OPENVM
+#include "openvm/openvm_vm.h"
+#include "openvm/openvm_sha256.h"
+#include <cstdio>
+
+/* Direct-to-memory writer: bypasses ostream, streambuf, and std::string
+ * entirely. Writes PPM output straight to OPENVM_CARVE_START in AS 2.
+ * On flush(), hashes and reveals (ptr, size, sha256) to AS 3. */
+struct openvm_writer : writer_core {
+    openvm_writer() { ptr = reinterpret_cast<uint8_t*>(OPENVM_CARVE_START); }
 
     uint32_t size() const {
         return static_cast<uint32_t>(ptr - reinterpret_cast<uint8_t*>(OPENVM_CARVE_START));
@@ -68,30 +74,31 @@ struct openvm_writer {
 
 inline openvm_writer openvm_wout;
 #define OUT openvm_wout
-
-/* OPENVM-specific write_color: writes directly to the raw buffer,
- * bypassing ostream/streambuf/string entirely. */
-inline void write_color(openvm_writer& out, const color& pixel_color) {
-    auto r = pixel_color.x();
-    auto g = pixel_color.y();
-    auto b = pixel_color.z();
-
-    r = linear_to_gamma(r);
-    g = linear_to_gamma(g);
-    b = linear_to_gamma(b);
-
-    static const interval intensity(REAL_C(0.000), REAL_C(0.999));
-    int rbyte = int(256 * intensity.clamp(r));
-    int gbyte = int(256 * intensity.clamp(g));
-    int bbyte = int(256 * intensity.clamp(b));
-
-    out.write_int(rbyte); out.write_char(' ');
-    out.write_int(gbyte); out.write_char(' ');
-    out.write_int(bbyte); out.write_char('\n');
-}
 #else
+#include <cstdio>
 #include <iostream>
-#define OUT std::cout
+
+/* Native counterpart of openvm_writer: buffers the whole image in memory and
+ * emits it with a single fwrite on flush(). Bypasses ostream/streambuf so
+ * native x86_64 instruction counts are comparable to the OpenVM build. */
+struct native_writer : writer_core {
+    static constexpr uint32_t capacity = 32u * 1024u * 1024u;
+    uint8_t* base;
+
+    native_writer() : base(new uint8_t[capacity]) { ptr = base; }
+    ~native_writer() { delete[] base; }
+
+    uint32_t size() const {
+        return static_cast<uint32_t>(ptr - base);
+    }
+
+    void flush() {
+        std::fwrite(base, 1, size(), stdout);
+    }
+};
+
+inline native_writer native_wout;
+#define OUT native_wout
 #endif
 
 

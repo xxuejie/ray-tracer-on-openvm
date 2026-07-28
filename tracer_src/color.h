@@ -26,7 +26,11 @@ inline double linear_to_gamma(double linear_component)
 }
 
 
-void write_color(std::ostream& out, const color& pixel_color) {
+/* Shared by both the OpenVM and native writers: emits gamma-corrected pixel
+ * bytes through the writer's write_int/write_char, bypassing ostream entirely
+ * so instruction counts stay comparable across targets. */
+template <typename Writer>
+inline void write_color(Writer& out, const color& pixel_color) {
     auto r = pixel_color.x();
     auto g = pixel_color.y();
     auto b = pixel_color.z();
@@ -42,7 +46,9 @@ void write_color(std::ostream& out, const color& pixel_color) {
     int gbyte = int(256 * intensity.clamp(g));
     int bbyte = int(256 * intensity.clamp(b));
 
-    out << rbyte << ' ' << gbyte << ' ' << bbyte << '\n';
+    out.write_int(rbyte); out.write_char(' ');
+    out.write_int(gbyte); out.write_char(' ');
+    out.write_int(bbyte); out.write_char('\n');
 }
 
 
