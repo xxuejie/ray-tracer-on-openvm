@@ -1348,7 +1348,7 @@ dependencies = [
 [[package]]
 name = "openvm-rv32f-circuit"
 version = "0.1.0"
-source = "git+https://github.com/xxuejie/openvm-floating.git?rev=3940d2cf7df425bf1179580e6c90f7a04acffe5f#3940d2cf7df425bf1179580e6c90f7a04acffe5f"
+source = "git+https://github.com/xxuejie/openvm-floating.git?rev=4a7bb5d2f5cc0e77d743093917dd75f216e721bd#4a7bb5d2f5cc0e77d743093917dd75f216e721bd"
 dependencies = [
  "derive-new 0.7.0",
  "derive_more 2.1.1",
@@ -1370,12 +1370,12 @@ dependencies = [
 [[package]]
 name = "openvm-rv32f-guest"
 version = "0.1.0"
-source = "git+https://github.com/xxuejie/openvm-floating.git?rev=3940d2cf7df425bf1179580e6c90f7a04acffe5f#3940d2cf7df425bf1179580e6c90f7a04acffe5f"
+source = "git+https://github.com/xxuejie/openvm-floating.git?rev=4a7bb5d2f5cc0e77d743093917dd75f216e721bd#4a7bb5d2f5cc0e77d743093917dd75f216e721bd"
 
 [[package]]
 name = "openvm-rv32f-transpiler"
 version = "0.1.0"
-source = "git+https://github.com/xxuejie/openvm-floating.git?rev=3940d2cf7df425bf1179580e6c90f7a04acffe5f#3940d2cf7df425bf1179580e6c90f7a04acffe5f"
+source = "git+https://github.com/xxuejie/openvm-floating.git?rev=4a7bb5d2f5cc0e77d743093917dd75f216e721bd#4a7bb5d2f5cc0e77d743093917dd75f216e721bd"
 dependencies = [
  "openvm-instructions",
  "openvm-instructions-derive",

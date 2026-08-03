@@ -31,8 +31,8 @@ openvm-sha2-transpiler = { git = "https://github.com/xxuejie/openvm.git", rev = 
 openvm-sha2-circuit = { git = "https://github.com/xxuejie/openvm.git", rev = "2c97976209bdb06c994990581a3b64ab53d1e3f1", default-features = false }
 
 # RISC-V F extension (zfinx / F mode only). From openvm-floating git.
-openvm-rv32f-transpiler = { git = "https://github.com/xxuejie/openvm-floating.git", rev = "3940d2cf7df425bf1179580e6c90f7a04acffe5f", optional = true }
-openvm-rv32f-circuit = { git = "https://github.com/xxuejie/openvm-floating.git", rev = "3940d2cf7df425bf1179580e6c90f7a04acffe5f", optional = true }
+openvm-rv32f-transpiler = { git = "https://github.com/xxuejie/openvm-floating.git", rev = "4a7bb5d2f5cc0e77d743093917dd75f216e721bd", optional = true }
+openvm-rv32f-circuit = { git = "https://github.com/xxuejie/openvm-floating.git", rev = "4a7bb5d2f5cc0e77d743093917dd75f216e721bd", optional = true }
 
 # STARK backend (BabyBear / Poseidon2).
 openvm-stark-sdk = { git = "https://github.com/openvm-org/stark-backend.git", tag = "v2.0.0" }
